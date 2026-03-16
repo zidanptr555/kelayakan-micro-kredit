@@ -6,7 +6,7 @@ Jalankan: streamlit run app.py
 import streamlit as st
 import pandas as pd
 import numpy as np
-import pickle, json, os
+import pickle, json, os, io, base64
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
@@ -396,6 +396,7 @@ with st.sidebar:
         ("Prediksi Kredit", """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>"""),
         ("Simulasi What-If", """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>"""),
         ("Upload CSV", """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>"""),
+        ("Riwayat", """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"/></svg>"""),
         ("Konsultasi AI", """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>"""),
         ("Info Model", """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>"""),
     ]
@@ -425,6 +426,7 @@ with st.sidebar:
         "Prediksi Kredit" : "📋 Prediksi Kredit",
         "Simulasi What-If": "📈 Simulasi What-If",
         "Upload CSV"      : "📂 Upload CSV",
+        "Riwayat"         : "🕓 Riwayat",
         "Konsultasi AI"   : "💬 Konsultasi AI",
         "Info Model"      : "📊 Info Model",
     }
@@ -676,6 +678,135 @@ elif page == "📋 Prediksi Kredit":
         plt.tight_layout()
         st.pyplot(fig)
         plt.close()
+
+        # ── Skor Kredit 0–100 ────────────────────────────────
+        st.markdown("### Skor Kredit")
+        credit_score = int((1 - result["prob_default"]) * 100)
+        if credit_score >= 75:
+            score_color, score_label = "#22c55e", "Sangat Baik"
+        elif credit_score >= 60:
+            score_color, score_label = "#84cc16", "Baik"
+        elif credit_score >= 45:
+            score_color, score_label = "#f59e0b", "Cukup"
+        elif credit_score >= 30:
+            score_color, score_label = "#f97316", "Kurang"
+        else:
+            score_color, score_label = "#f43f5e", "Buruk"
+
+        fig_score, ax_score = plt.subplots(figsize=(6, 2))
+        ax_score.barh([""], [credit_score], color=score_color, height=0.5)
+        ax_score.barh([""], [100 - credit_score], color="#f1f5f9", height=0.5, left=credit_score)
+        ax_score.set_xlim(0, 100)
+        for thresh, col in [(30,"#f43f5e"),(45,"#f97316"),(60,"#f59e0b"),(75,"#84cc16")]:
+            ax_score.axvline(thresh, color=col, lw=1.2, linestyle="--", alpha=0.6)
+        ax_score.text(credit_score/2, 0, f"{credit_score}", va="center", ha="center",
+                      fontsize=14, fontweight="bold",
+                      color="white" if credit_score > 15 else score_color)
+        ax_score.set_xlabel("Skor (0 = risiko tinggi, 100 = risiko rendah)")
+        ax_score.set_title(f"Skor Kredit: {credit_score}/100 — {score_label}", fontweight="bold")
+        ax_score.spines[["top","right","left"]].set_visible(False)
+        plt.tight_layout()
+        st.pyplot(fig_score)
+        plt.close()
+
+        # ── Simpan ke riwayat ─────────────────────────────────
+        if "prediction_history" not in st.session_state:
+            st.session_state["prediction_history"] = []
+        st.session_state["prediction_history"].append({
+            "No"                    : len(st.session_state["prediction_history"]) + 1,
+            "Usia"                  : input_data.get("person_age", "-"),
+            "Pendapatan (Rp)"       : f"{input_data.get('person_income',0):,.0f}",
+            "Pinjaman (Rp)"         : f"{input_data.get('loan_amnt',0):,.0f}",
+            "Suku Bunga (%)"        : input_data.get("loan_int_rate", "-"),
+            "Skor Kredit"           : credit_score,
+            "Status"                : "LAYAK" if result["label"] == 0 else "TIDAK LAYAK",
+            "Prob. Gagal Bayar (%)" : f"{result['prob_default']*100:.1f}",
+        })
+
+        # ── Download PDF ──────────────────────────────────────
+        st.markdown("### Download Laporan")
+        try:
+            from fpdf import FPDF
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_margins(20, 20, 20)
+
+            # Header
+            pdf.set_fill_color(15, 17, 23)
+            pdf.rect(0, 0, 210, 30, "F")
+            pdf.set_font("Helvetica", "B", 16)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_xy(20, 10)
+            pdf.cell(0, 10, "KreditCheck — Laporan Analisis Kredit", ln=True)
+
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_xy(20, 38)
+
+            # Data pemohon
+            pdf.set_font("Helvetica", "B", 12)
+            pdf.cell(0, 8, "Data Pemohon", ln=True)
+            pdf.set_font("Helvetica", "", 10)
+            pdf.set_x(20)
+            rows = [
+                ("Usia", f"{input_data.get('person_age','-')} tahun"),
+                ("Pendapatan Tahunan", f"Rp {input_data.get('person_income',0):,.0f}"),
+                ("Jumlah Pinjaman", f"Rp {input_data.get('loan_amnt',0):,.0f}"),
+                ("Suku Bunga", f"{input_data.get('loan_int_rate',0):.1f}%"),
+                ("Lama Bekerja", f"{input_data.get('person_emp_length',0):.0f} tahun"),
+            ]
+            for label, val in rows:
+                pdf.set_x(20)
+                pdf.cell(70, 7, label, border="B")
+                pdf.cell(0, 7, val, border="B", ln=True)
+
+            pdf.ln(8)
+            # Hasil prediksi
+            pdf.set_font("Helvetica", "B", 12)
+            pdf.set_x(20)
+            pdf.cell(0, 8, "Hasil Analisis", ln=True)
+            pdf.set_font("Helvetica", "B", 14)
+            pdf.set_x(20)
+            status_text = "LAYAK" if result["label"] == 0 else "TIDAK LAYAK"
+            if result["label"] == 0:
+                pdf.set_text_color(34, 197, 94)
+            else:
+                pdf.set_text_color(244, 63, 94)
+            pdf.cell(0, 10, f"Status: {status_text}", ln=True)
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_font("Helvetica", "", 10)
+            pdf.set_x(20)
+            pdf.cell(0, 7, f"Probabilitas Gagal Bayar : {result['prob_default']*100:.1f}%", ln=True)
+            pdf.set_x(20)
+            pdf.cell(0, 7, f"Skor Kredit              : {credit_score}/100 ({score_label})", ln=True)
+
+            pdf.ln(6)
+            # Top 5 faktor
+            pdf.set_font("Helvetica", "B", 12)
+            pdf.set_x(20)
+            pdf.cell(0, 8, "Faktor Utama Penentu Keputusan (SHAP)", ln=True)
+            pdf.set_font("Helvetica", "", 10)
+            for i, (feat, val) in enumerate(result["shap_series"].head(5).items(), 1):
+                direction = "Meningkatkan risiko" if result["shap_values"][list(result["shap_series"].index).index(feat)] > 0 else "Menurunkan risiko"
+                pdf.set_x(20)
+                pdf.cell(0, 6, f"{i}. {feat} — {direction}", ln=True)
+
+            pdf.ln(6)
+            pdf.set_font("Helvetica", "I", 8)
+            pdf.set_text_color(150, 150, 150)
+            pdf.set_x(20)
+            pdf.cell(0, 5, "Laporan ini dihasilkan oleh KreditCheck — Sistem Klasifikasi Kelayakan Kredit Mikro berbasis ML", ln=True)
+
+            pdf_bytes = pdf.output()
+            st.download_button(
+                "Download Laporan PDF",
+                data=bytes(pdf_bytes),
+                file_name=f"laporan_kredit_skor{credit_score}.pdf",
+                mime="application/pdf",
+            )
+        except ImportError:
+            st.info("Install fpdf2 untuk fitur download PDF: `pip install fpdf2`")
+        except Exception as e:
+            st.warning(f"PDF tidak bisa dibuat: {e}")
 
         st.info("💬 Buka halaman **Konsultasi AI** untuk mendapatkan saran personal berdasarkan hasil ini.")
 
@@ -967,6 +1098,72 @@ elif page == "📂 Upload CSV":
         except Exception as e:
             st.error(f"Error membaca file: {e}")
             st.info("Pastikan format CSV sesuai template yang disediakan.")
+
+# ────────────────────────────────────────────────────────────
+# Halaman: Riwayat Prediksi
+# ────────────────────────────────────────────────────────────
+elif page == "🕓 Riwayat":
+    st.markdown("## Riwayat Prediksi Sesi Ini")
+
+    history = st.session_state.get("prediction_history", [])
+
+    if not history:
+        st.info("Belum ada prediksi dalam sesi ini. Lakukan prediksi di halaman Prediksi Kredit terlebih dahulu.")
+    else:
+        # Ringkasan
+        n_total = len(history)
+        n_layak = sum(1 for h in history if h["Status"] == "LAYAK")
+        n_tolak = n_total - n_layak
+        avg_score = sum(h["Skor Kredit"] for h in history) / n_total
+
+        r1, r2, r3, r4 = st.columns(4)
+        r1.metric("Total Prediksi", n_total)
+        r2.metric("Layak", n_layak)
+        r3.metric("Tidak Layak", n_tolak)
+        r4.metric("Rata-rata Skor", f"{avg_score:.0f}/100")
+
+        # Pie chart
+        if n_total > 1:
+            fig_pie, ax_pie = plt.subplots(figsize=(4, 3))
+            ax_pie.pie([n_layak, n_tolak],
+                       labels=["Layak", "Tidak Layak"],
+                       colors=["#22c55e", "#f43f5e"],
+                       autopct="%1.0f%%", startangle=90,
+                       textprops={"fontsize": 10})
+            ax_pie.set_title("Distribusi Hasil", fontweight="bold")
+            col_pie, col_empty = st.columns([1, 2])
+            with col_pie:
+                st.pyplot(fig_pie)
+            plt.close()
+
+        # Tabel riwayat
+        st.markdown("### Detail Riwayat")
+        df_hist = pd.DataFrame(history)
+        st.dataframe(
+            df_hist.style.apply(
+                lambda x: ["background-color:#f0fdf4;color:#166534" if v == "LAYAK"
+                           else "background-color:#fff1f2;color:#9f1239" if v == "TIDAK LAYAK"
+                           else "" for v in x],
+                subset=["Status"]
+            ),
+            use_container_width=True
+        )
+
+        # Download riwayat
+        csv_hist = pd.DataFrame(history).to_csv(index=False)
+        col_dl1, col_dl2 = st.columns([1, 3])
+        with col_dl1:
+            st.download_button(
+                "Download Riwayat CSV",
+                csv_hist,
+                "riwayat_prediksi.csv",
+                "text/csv",
+            )
+        with col_dl2:
+            if st.button("Hapus Riwayat"):
+                st.session_state["prediction_history"] = []
+                st.rerun()
+
 
 # ────────────────────────────────────────────────────────────
 # Halaman: Info Model
