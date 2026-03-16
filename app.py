@@ -737,7 +737,7 @@ elif page == "📋 Prediksi Kredit":
             pdf.set_font("Helvetica", "B", 16)
             pdf.set_text_color(255, 255, 255)
             pdf.set_xy(20, 10)
-            pdf.cell(0, 10, "KreditCheck — Laporan Analisis Kredit", ln=True)
+            pdf.cell(0, 10, "KreditCheck - Laporan Analisis Kredit", ln=True)
 
             pdf.set_text_color(0, 0, 0)
             pdf.set_xy(20, 38)
@@ -746,18 +746,19 @@ elif page == "📋 Prediksi Kredit":
             pdf.set_font("Helvetica", "B", 12)
             pdf.cell(0, 8, "Data Pemohon", ln=True)
             pdf.set_font("Helvetica", "", 10)
-            pdf.set_x(20)
             rows = [
-                ("Usia", f"{input_data.get('person_age','-')} tahun"),
+                ("Usia",               f"{input_data.get('person_age','-')} tahun"),
                 ("Pendapatan Tahunan", f"Rp {input_data.get('person_income',0):,.0f}"),
-                ("Jumlah Pinjaman", f"Rp {input_data.get('loan_amnt',0):,.0f}"),
-                ("Suku Bunga", f"{input_data.get('loan_int_rate',0):.1f}%"),
-                ("Lama Bekerja", f"{input_data.get('person_emp_length',0):.0f} tahun"),
+                ("Jumlah Pinjaman",    f"Rp {input_data.get('loan_amnt',0):,.0f}"),
+                ("Suku Bunga",         f"{input_data.get('loan_int_rate',0):.1f}%"),
+                ("Lama Bekerja",       f"{input_data.get('person_emp_length',0):.0f} tahun"),
             ]
             for label, val in rows:
                 pdf.set_x(20)
+                # Bersihkan karakter non-latin
+                val_clean = val.encode("latin-1", "replace").decode("latin-1")
                 pdf.cell(70, 7, label, border="B")
-                pdf.cell(0, 7, val, border="B", ln=True)
+                pdf.cell(0,  7, val_clean, border="B", ln=True)
 
             pdf.ln(8)
             # Hasil prediksi
@@ -780,21 +781,24 @@ elif page == "📋 Prediksi Kredit":
             pdf.cell(0, 7, f"Skor Kredit              : {credit_score}/100 ({score_label})", ln=True)
 
             pdf.ln(6)
-            # Top 5 faktor
+            # Top 5 faktor SHAP
             pdf.set_font("Helvetica", "B", 12)
             pdf.set_x(20)
-            pdf.cell(0, 8, "Faktor Utama Penentu Keputusan (SHAP)", ln=True)
+            pdf.cell(0, 8, "Faktor Utama Penentu Keputusan (SHAP Top 5)", ln=True)
             pdf.set_font("Helvetica", "", 10)
-            for i, (feat, val) in enumerate(result["shap_series"].head(5).items(), 1):
-                direction = "Meningkatkan risiko" if result["shap_values"][list(result["shap_series"].index).index(feat)] > 0 else "Menurunkan risiko"
+            shap_indices = list(result["shap_series"].index)
+            for i, feat in enumerate(result["shap_series"].head(5).index, 1):
+                idx       = shap_indices.index(feat)
+                direction = "Meningkatkan risiko" if result["shap_values"][idx] > 0 else "Menurunkan risiko"
+                feat_clean = feat.encode("latin-1","replace").decode("latin-1")
                 pdf.set_x(20)
-                pdf.cell(0, 6, f"{i}. {feat} — {direction}", ln=True)
+                pdf.cell(0, 6, f"{i}. {feat_clean} ({direction})", ln=True)
 
             pdf.ln(6)
             pdf.set_font("Helvetica", "I", 8)
             pdf.set_text_color(150, 150, 150)
             pdf.set_x(20)
-            pdf.cell(0, 5, "Laporan ini dihasilkan oleh KreditCheck — Sistem Klasifikasi Kelayakan Kredit Mikro berbasis ML", ln=True)
+            pdf.cell(0, 5, "Laporan dihasilkan oleh KreditCheck - Sistem Klasifikasi Kelayakan Kredit Mikro berbasis ML", ln=True)
 
             pdf_bytes = pdf.output()
             st.download_button(
