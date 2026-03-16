@@ -1,0 +1,41 @@
+{
+  "model_name": "XGBoost",
+  "auc_roc": 0.9410245119840402,
+  "f1_score": 0.9275119517820934,
+  "all_features": [
+    "AGE_YEARS",
+    "AMT_INCOME_TOTAL",
+    "person_home_ownership",
+    "YEARS_EMPLOYED",
+    "loan_intent",
+    "loan_grade",
+    "AMT_CREDIT",
+    "AMT_ANNUITY",
+    "loan_percent_income",
+    "cb_person_default_on_file",
+    "cb_person_cred_hist_length",
+    "CREDIT_INCOME_RATIO",
+    "ANNUITY_INCOME_RATIO",
+    "CREDIT_TERM",
+    "INCOME_PER_PERSON",
+    "EMPLOYED_TO_AGE_RATIO"
+  ],
+  "top_features": [
+    "loan_grade",
+    "CREDIT_INCOME_RATIO",
+    "person_home_ownership",
+    "loan_intent",
+    "AMT_INCOME_TOTAL",
+    "loan_percent_income",
+    "ANNUITY_INCOME_RATIO",
+    "AMT_ANNUITY",
+    "cb_person_default_on_file",
+    "YEARS_EMPLOYED",
+    "INCOME_PER_PERSON",
+    "EMPLOYED_TO_AGE_RATIO",
+    "AGE_YEARS",
+    "AMT_CREDIT",
+    "cb_person_cred_hist_length"
+  ],
+  "threshold": 0.5
+}

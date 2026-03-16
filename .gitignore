@@ -1,0 +1,3 @@
+# Buat file .gitignore
+echo ".streamlit/secrets.toml" > .gitignore
+echo ".env" >> .gitignore
