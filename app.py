@@ -333,10 +333,32 @@ def chat_with_gemini(messages: list, system_prompt: str) -> str:
 # ────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""
-    <div style="padding:0.5rem 0 1.5rem;">
-      <div style="font-size:1.2rem;font-weight:700;color:#f1f5f9;letter-spacing:-0.02em;">KreditCheck</div>
-      <div style="font-size:0.78rem;color:#64748b;margin-top:4px;line-height:1.5;">
-        Sistem Klasifikasi Kelayakan Kredit Mikro berbasis Machine Learning
+    <div style="padding:0.5rem 0 1.75rem;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <!-- Logo SVG -->
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="40" height="40" rx="10" fill="#1a1a1a"/>
+          <rect x="1" y="1" width="38" height="38" rx="9" stroke="url(#silver)" stroke-width="1"/>
+          <rect x="8" y="14" width="24" height="15" rx="2.5" stroke="#C0C0C0" stroke-width="1.5"/>
+          <rect x="8" y="17" width="24" height="4" fill="#C0C0C0" opacity="0.25"/>
+          <circle cx="13" cy="25" r="2" fill="#C0C0C0" opacity="0.6"/>
+          <circle cx="19" cy="25" r="2" fill="#C0C0C0" opacity="0.4"/>
+          <rect x="14" y="11" width="5" height="4" rx="1" stroke="#C0C0C0" stroke-width="1.2"/>
+          <rect x="21" y="11" width="5" height="4" rx="1" stroke="#C0C0C0" stroke-width="1.2"/>
+          <defs>
+            <linearGradient id="silver" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#888"/>
+              <stop offset="50%" stop-color="#e8e8e8"/>
+              <stop offset="100%" stop-color="#888"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div>
+          <div style="font-size:1.1rem;font-weight:700;color:#f1f5f9;
+                      letter-spacing:-0.02em;line-height:1.2;">KreditCheck</div>
+          <div style="font-size:0.68rem;color:#64748b;letter-spacing:0.05em;
+                      text-transform:uppercase;margin-top:2px;">Micro Credit AI</div>
+        </div>
       </div>
     </div>
     """, unsafe_allow_html=True)
