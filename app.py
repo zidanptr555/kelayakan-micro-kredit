@@ -394,6 +394,8 @@ with st.sidebar:
     nav_items = [
         ("Beranda", """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>"""),
         ("Prediksi Kredit", """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>"""),
+        ("Simulasi What-If", """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>"""),
+        ("Upload CSV", """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>"""),
         ("Konsultasi AI", """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>"""),
         ("Info Model", """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>"""),
     ]
@@ -419,10 +421,12 @@ with st.sidebar:
         """, unsafe_allow_html=True)
 
     page_map = {
-        "Beranda"        : "🏠 Beranda",
-        "Prediksi Kredit": "📋 Prediksi Kredit",
-        "Konsultasi AI"  : "💬 Konsultasi AI",
-        "Info Model"     : "📊 Info Model",
+        "Beranda"         : "🏠 Beranda",
+        "Prediksi Kredit" : "📋 Prediksi Kredit",
+        "Simulasi What-If": "📈 Simulasi What-If",
+        "Upload CSV"      : "📂 Upload CSV",
+        "Konsultasi AI"   : "💬 Konsultasi AI",
+        "Info Model"      : "📊 Info Model",
     }
     page = page_map[st.session_state["page"]]
 
@@ -759,6 +763,210 @@ elif page == "💬 Konsultasi AI":
         st.session_state.pop("chat_history", None)
         st.rerun()
 
+
+
+# ────────────────────────────────────────────────────────────
+# Halaman: Simulasi What-If
+# ────────────────────────────────────────────────────────────
+elif page == "📈 Simulasi What-If":
+    st.markdown("## Simulasi What-If — Analisis Sensitivitas")
+    st.markdown("Geser slider untuk melihat bagaimana perubahan variabel mempengaruhi hasil prediksi secara real-time.")
+
+    if not arts:
+        st.error("Model belum tersedia.")
+        st.stop()
+
+    # Ambil nilai terakhir dari prediksi sebelumnya sebagai baseline
+    last_input = st.session_state.get("last_input", {})
+
+    st.markdown("### Parameter Simulasi")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("**Data Pribadi**")
+        sim_age      = st.slider("Usia (tahun)", 18, 70,
+                                  int(last_input.get("person_age", 30)))
+        sim_income   = st.slider("Pendapatan Tahunan (juta Rp)", 12, 500,
+                                  int(last_input.get("person_income", 60_000_000) / 1_000_000)) * 1_000_000
+        sim_emp      = st.slider("Lama Bekerja (tahun)", 0, 40,
+                                  int(last_input.get("person_emp_length", 5)))
+        sim_cred_hist= st.slider("Riwayat Kredit (tahun)", 0, 30,
+                                  int(last_input.get("cb_person_cred_hist_length", 3)))
+    with c2:
+        st.markdown("**Data Pinjaman**")
+        sim_loan     = st.slider("Jumlah Pinjaman (juta Rp)", 1, 100,
+                                  int(last_input.get("loan_amnt", 10_000_000) / 1_000_000)) * 1_000_000
+        sim_rate     = st.slider("Suku Bunga (%)", 1.0, 30.0,
+                                  float(last_input.get("loan_int_rate", 11.0)), 0.5)
+        sim_default  = st.selectbox("Pernah Gagal Bayar?", ["Tidak (N)", "Ya (Y)"],
+                                     index=0 if last_input.get("cb_person_default_on_file", 0) == 0 else 1)
+        sim_grade    = st.selectbox("Grade Kredit", ["A","B","C","D","E","F","G"],
+                                     index=last_input.get("loan_grade", 0))
+
+    # Hitung prediksi real-time
+    grade_map  = {"A":0,"B":1,"C":2,"D":3,"E":4,"F":5,"G":6}
+    sim_input  = {
+        "person_age"                 : sim_age,
+        "person_income"              : sim_income,
+        "person_emp_length"          : sim_emp,
+        "loan_amnt"                  : sim_loan,
+        "loan_int_rate"              : sim_rate,
+        "loan_percent_income"        : sim_loan / (sim_income + 1),
+        "cb_person_cred_hist_length" : sim_cred_hist,
+        "cb_person_default_on_file"  : 1 if "Y" in sim_default else 0,
+        "loan_grade"                 : grade_map[sim_grade],
+        "loan_intent"                : last_input.get("loan_intent", 0),
+        "person_home_ownership"      : last_input.get("person_home_ownership", 0),
+    }
+
+    try:
+        sim_result = predict(sim_input, arts)
+        prob_pct   = sim_result["prob_default"] * 100
+
+        # Hasil real-time
+        st.markdown("---")
+        st.markdown("### Hasil Simulasi Real-time")
+
+        col_res1, col_res2, col_res3, col_res4 = st.columns(4)
+        verdict_color = "#22c55e" if sim_result["label"] == 0 else "#f43f5e"
+        verdict_text  = "LAYAK" if sim_result["label"] == 0 else "TIDAK LAYAK"
+
+        col_res1.markdown(f"""
+        <div style="background:#f8fafc;border-radius:10px;padding:14px;text-align:center;
+                    border:1.5px solid {verdict_color};">
+          <div style="font-size:0.75rem;color:#64748b;">Status</div>
+          <div style="font-size:1.2rem;font-weight:700;color:{verdict_color};margin-top:4px;">{verdict_text}</div>
+        </div>""", unsafe_allow_html=True)
+        col_res2.metric("Prob. Gagal Bayar", f"{prob_pct:.1f}%")
+        col_res3.metric("Rasio Pinjaman/Pendapatan", f"{sim_loan/sim_income:.2%}")
+        col_res4.metric("Cicilan Est./Bulan", f"Rp {(sim_loan * sim_rate/100)/12:,.0f}")
+
+        # Gauge chart probabilitas
+        fig, ax = plt.subplots(figsize=(8, 2.5))
+        bar_color = "#22c55e" if prob_pct < 50 else "#f59e0b" if prob_pct < 70 else "#f43f5e"
+        ax.barh(["Probabilitas Gagal Bayar"], [prob_pct], color=bar_color,
+                height=0.4, left=0)
+        ax.barh(["Probabilitas Gagal Bayar"], [100 - prob_pct], color="#f1f5f9",
+                height=0.4, left=prob_pct)
+        ax.set_xlim(0, 100)
+        ax.axvline(50, color="#94a3b8", lw=1, linestyle="--", alpha=0.5)
+        ax.text(prob_pct - 2 if prob_pct > 10 else prob_pct + 2,
+                0, f"{prob_pct:.1f}%", va="center",
+                ha="right" if prob_pct > 10 else "left",
+                fontsize=12, fontweight="bold", color="white" if prob_pct > 15 else bar_color)
+        ax.set_xlabel("Probabilitas (%)")
+        ax.set_title("Tingkat Risiko Kredit", fontweight="bold", fontsize=11)
+        ax.spines[["top","right","left"]].set_visible(False)
+        plt.tight_layout()
+        st.pyplot(fig)
+        plt.close()
+
+        st.info("Geser slider di atas untuk melihat perubahan prediksi secara real-time — tidak perlu klik tombol apapun.")
+
+    except Exception as e:
+        st.error(f"Error simulasi: {e}")
+
+
+# ────────────────────────────────────────────────────────────
+# Halaman: Upload CSV
+# ────────────────────────────────────────────────────────────
+elif page == "📂 Upload CSV":
+    st.markdown("## Prediksi Massal — Upload CSV")
+    st.markdown("Upload file CSV berisi data beberapa pemohon sekaligus untuk diprediksi secara batch.")
+
+    if not arts:
+        st.error("Model belum tersedia.")
+        st.stop()
+
+    # Template download
+    st.markdown("### Download Template CSV")
+    template_df = pd.DataFrame([{
+        "person_age": 30, "person_income": 60000000,
+        "person_emp_length": 5, "loan_amnt": 10000000,
+        "loan_int_rate": 11.0, "cb_person_cred_hist_length": 3,
+        "cb_person_default_on_file": 0, "loan_grade": 1,
+        "loan_intent": 0, "person_home_ownership": 0,
+    }] * 3)
+    csv_template = template_df.to_csv(index=False)
+    st.download_button(
+        "Download Template CSV",
+        csv_template,
+        "template_pemohon.csv",
+        "text/csv",
+    )
+    st.caption("Isi file template dengan data pemohon, lalu upload di bawah.")
+
+    st.markdown("### Upload File CSV")
+    uploaded = st.file_uploader("Pilih file CSV", type=["csv"])
+
+    if uploaded:
+        try:
+            df_upload = pd.read_csv(uploaded)
+            st.markdown(f"**{len(df_upload)} pemohon terdeteksi**")
+            st.dataframe(df_upload.head(5), use_container_width=True)
+
+            if st.button("Proses Prediksi Semua", use_container_width=True):
+                results_list = []
+                progress = st.progress(0)
+                status   = st.empty()
+
+                for i, row in df_upload.iterrows():
+                    status.text(f"Memproses pemohon {i+1} dari {len(df_upload)}...")
+                    try:
+                        row_dict = row.to_dict()
+                        row_dict["loan_percent_income"] = row_dict.get("loan_amnt", 0) / (row_dict.get("person_income", 1) + 1)
+                        res = predict(row_dict, arts)
+                        results_list.append({
+                            "No"                   : i + 1,
+                            "Usia"                 : int(row_dict.get("person_age", 0)),
+                            "Pendapatan (Rp)"      : f"{row_dict.get('person_income',0):,.0f}",
+                            "Pinjaman (Rp)"        : f"{row_dict.get('loan_amnt',0):,.0f}",
+                            "Suku Bunga (%)"       : row_dict.get("loan_int_rate", 0),
+                            "Status"               : "LAYAK" if res["label"] == 0 else "TIDAK LAYAK",
+                            "Prob. Gagal Bayar (%)" : f"{res['prob_default']*100:.1f}",
+                        })
+                    except Exception:
+                        results_list.append({
+                            "No": i+1, "Status": "ERROR",
+                            "Prob. Gagal Bayar (%)": "-"
+                        })
+                    progress.progress((i + 1) / len(df_upload))
+
+                status.empty()
+                progress.empty()
+                df_results = pd.DataFrame(results_list)
+
+                # Ringkasan
+                st.markdown("### Hasil Prediksi")
+                n_layak   = (df_results["Status"] == "LAYAK").sum()
+                n_tolak   = (df_results["Status"] == "TIDAK LAYAK").sum()
+                r1, r2, r3 = st.columns(3)
+                r1.metric("Total Pemohon", len(df_results))
+                r2.metric("Layak", n_layak, delta=f"{n_layak/len(df_results)*100:.0f}%")
+                r3.metric("Tidak Layak", n_tolak, delta=f"-{n_tolak/len(df_results)*100:.0f}%")
+
+                # Tabel hasil dengan warna
+                st.dataframe(
+                    df_results.style.apply(
+                        lambda x: ["background-color:#f0fdf4;color:#166534" if v == "LAYAK"
+                                   else "background-color:#fff1f2;color:#9f1239" if v == "TIDAK LAYAK"
+                                   else "" for v in x],
+                        subset=["Status"]
+                    ),
+                    use_container_width=True
+                )
+
+                # Download hasil
+                csv_out = df_results.to_csv(index=False)
+                st.download_button(
+                    "Download Hasil Prediksi (CSV)",
+                    csv_out,
+                    "hasil_prediksi_kredit.csv",
+                    "text/csv",
+                )
+
+        except Exception as e:
+            st.error(f"Error membaca file: {e}")
+            st.info("Pastikan format CSV sesuai template yang disediakan.")
 
 # ────────────────────────────────────────────────────────────
 # Halaman: Info Model
