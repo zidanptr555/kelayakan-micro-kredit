@@ -246,8 +246,10 @@ def predict(input_dict: dict, arts: dict) -> dict:
             df_in[col] = 0
     df_aligned = df_in[features]
 
-    # Impute & predict
-    X_imp = arts["imputer"].transform(df_aligned)
+    # Impute — pakai SimpleImputer baru agar kompatibel semua versi Python
+    from sklearn.impute import SimpleImputer
+    imputer_fresh = SimpleImputer(strategy="median")
+    X_imp = imputer_fresh.fit_transform(df_aligned)
     X_df  = pd.DataFrame(X_imp, columns=features)
 
     prob      = arts["model"].predict_proba(X_df)[0]
