@@ -148,6 +148,28 @@ st.markdown("""
     transition: opacity 0.2s !important;
   }
   .stButton > button:hover { opacity: 0.85 !important; }
+
+  /* Nav buttons di sidebar */
+  section[data-testid="stSidebar"] .stButton > button {
+    background: transparent !important;
+    color: #64748b !important;
+    border: none !important;
+    border-left: 2px solid transparent !important;
+    border-radius: 0 8px 8px 0 !important;
+    font-weight: 400 !important;
+    font-size: 0.88rem !important;
+    padding: 0.5rem 1rem !important;
+    text-align: left !important;
+    width: 100% !important;
+    margin-bottom: 2px !important;
+    transition: all 0.15s !important;
+  }
+  section[data-testid="stSidebar"] .stButton > button:hover {
+    background: #1e2130 !important;
+    color: #e2e8f0 !important;
+    opacity: 1 !important;
+    border-left: 2px solid #6382f4 !important;
+  }
   div[data-testid="stForm"] { border: none !important; padding: 0 !important; }
   @media (max-width: 700px) {
     .feat-grid { grid-template-columns: 1fr; }
@@ -363,9 +385,46 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div style="font-size:0.7rem;font-weight:600;letter-spacing:0.1em;color:#475569;text-transform:uppercase;margin-bottom:8px;">Navigasi</div>', unsafe_allow_html=True)
-    page = st.radio("", ["🏠 Beranda", "📋 Prediksi Kredit", "💬 Konsultasi AI", "📊 Info Model"],
-                    label_visibility="collapsed")
+    # Custom navigasi HTML
+    if "page" not in st.session_state:
+        st.session_state["page"] = "Beranda"
+
+    st.markdown('<div style="font-size:0.7rem;font-weight:600;letter-spacing:0.1em;color:#475569;text-transform:uppercase;margin-bottom:10px;">Navigasi</div>', unsafe_allow_html=True)
+
+    nav_items = [
+        ("Beranda", """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>"""),
+        ("Prediksi Kredit", """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>"""),
+        ("Konsultasi AI", """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>"""),
+        ("Info Model", """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>"""),
+    ]
+
+    for nav_name, nav_icon in nav_items:
+        is_active = st.session_state["page"] == nav_name
+        active_style = "background:#1e2130;color:#f1f5f9;border-left:2px solid #6382f4;" if is_active else "background:transparent;color:#64748b;border-left:2px solid transparent;"
+        if st.sidebar.button(
+            nav_name,
+            key=f"nav_{nav_name}",
+            use_container_width=True,
+        ):
+            st.session_state["page"] = nav_name
+            st.rerun()
+
+        st.markdown(f"""
+        <style>
+        div[data-testid="stSidebarContent"] div[data-testid="stButton"] button[kind="secondary"] {{
+            text-align: left !important;
+            justify-content: flex-start !important;
+        }}
+        </style>
+        """, unsafe_allow_html=True)
+
+    page_map = {
+        "Beranda"        : "🏠 Beranda",
+        "Prediksi Kredit": "📋 Prediksi Kredit",
+        "Konsultasi AI"  : "💬 Konsultasi AI",
+        "Info Model"     : "📊 Info Model",
+    }
+    page = page_map[st.session_state["page"]]
 
     st.markdown('<hr style="border-color:#1e2130;margin:1.5rem 0;">', unsafe_allow_html=True)
 
